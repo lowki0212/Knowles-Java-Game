@@ -1,9 +1,9 @@
 package com.horrorgame.audio;
 
-import javax.sound.sampled.*;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import javax.sound.sampled.*;
 
 public class SoundManager {
 

@@ -1,27 +1,38 @@
 package com.horrorgame.menu;
 
 import com.horrorgame.audio.SoundManager;
+import com.horrorgame.core.Difficulty;
 import com.horrorgame.core.GameFrame;
-
-import java.awt.*;
-import java.awt.event.ActionListener;
-import javax.swing.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.GridLayout;
+import java.awt.Image;
+import java.awt.Toolkit;
+import java.awt.Graphics;
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.SwingConstants;
 
 public class DifficultyPanel extends JPanel {
 
-    private Image difficultyBackgroundGif;
+    private Image backgroundGif;
 
     public DifficultyPanel(GameFrame frame) {
-
+        setBackground(Color.BLACK);
         setLayout(new BorderLayout());
-        setOpaque(false);
 
-        // 🎥 Load Difficulty Background GIF
-        difficultyBackgroundGif = new ImageIcon(
-                getClass().getResource("/com/horrorgame/assets/images/difficultyscreen.gif")
-        ).getImage();
+        java.net.URL bgUrl = getClass().getResource("/com/horrorgame/assets/images/difficulty.gif");
+        if (bgUrl != null) {
+            backgroundGif = new javax.swing.ImageIcon(bgUrl).getImage();
+        } else {
+            backgroundGif = null;
+        }
 
-        // ===== TITLE =====
         JLabel title = new JLabel("Select Difficulty", SwingConstants.CENTER);
         title.setForeground(Color.RED);
 
@@ -33,9 +44,8 @@ public class DifficultyPanel extends JPanel {
 
         add(title, BorderLayout.NORTH);
 
-        // ===== BUTTON PANEL =====
         JPanel buttonPanel = new JPanel();
-        buttonPanel.setOpaque(false);
+        buttonPanel.setBackground(Color.BLACK);
         buttonPanel.setLayout(new GridLayout(3, 1, 0, 30));
         buttonPanel.setBorder(BorderFactory.createEmptyBorder(50, 400, 200, 400));
 
@@ -53,22 +63,23 @@ public class DifficultyPanel extends JPanel {
 
         add(buttonPanel, BorderLayout.CENTER);
 
-        // ===== BUTTON ACTION =====
-        ActionListener startGame = e -> {
+        easy.addActionListener(e -> {
             SoundManager.stopLoop();
-            frame.showScreen("Game");
-        };
+            frame.startGame(Difficulty.EASY);
+        });
 
-        easy.addActionListener(startGame);
-        medium.addActionListener(startGame);
-        hard.addActionListener(startGame);
+        medium.addActionListener(e -> {
+            SoundManager.stopLoop();
+            frame.startGame(Difficulty.MEDIUM);
+        });
 
-        // 🎬 Force repaint for smooth GIF animation
-        new Timer(40, e -> repaint()).start();
+        hard.addActionListener(e -> {
+            SoundManager.stopLoop();
+            frame.startGame(Difficulty.HARD);
+        });
     }
 
     private void styleButton(JButton button, Dimension screenSize) {
-
         int fontSize = screenSize.width / 30;
 
         button.setFocusPainted(false);
@@ -79,7 +90,6 @@ public class DifficultyPanel extends JPanel {
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
         button.addMouseListener(new java.awt.event.MouseAdapter() {
-
             @Override
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 button.setBackground(new Color(120, 0, 0));
@@ -96,16 +106,8 @@ public class DifficultyPanel extends JPanel {
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-
-        Graphics2D g2 = (Graphics2D) g;
-
-        // 🎥 Draw background GIF full screen
-        if (difficultyBackgroundGif != null) {
-            g2.drawImage(difficultyBackgroundGif, 0, 0, getWidth(), getHeight(), this);
+        if (backgroundGif != null) {
+            g.drawImage(backgroundGif, 0, 0, getWidth(), getHeight(), this);
         }
-
-        // 🌑 Dark overlay for horror effect
-        g2.setColor(new Color(0, 0, 0, 120));
-        g2.fillRect(0, 0, getWidth(), getHeight());
     }
 }

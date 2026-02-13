@@ -21,9 +21,13 @@ public class MainMenuPanel extends JPanel {
         //setBackground(Color.BLACK);
         setLayout(new BorderLayout());
 
-        backgroundGif = new ImageIcon(
-        getClass().getResource("/com/horrorgame/assets/images/homescreen.gif")
-    ).getImage();
+        java.net.URL bgUrl = getClass().getResource("/com/horrorgame/assets/images/homescreen.gif");
+        if (bgUrl != null) {
+            backgroundGif = new ImageIcon(bgUrl).getImage();
+        } else {
+            backgroundGif = null;
+            setBackground(Color.BLACK);
+        }
 
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 
