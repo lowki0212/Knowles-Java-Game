@@ -13,18 +13,24 @@ public class MainMenuPanel extends JPanel {
     private JLabel title;
     private int glitchOffsetX = 0;
     private int glitchOffsetY = 0;
+    private Image backgroundGif;
+
 
     public MainMenuPanel(GameFrame frame) {
 
-        setBackground(Color.BLACK);
+        //setBackground(Color.BLACK);
         setLayout(new BorderLayout());
+
+        backgroundGif = new ImageIcon(
+        getClass().getResource("/com/horrorgame/assets/images/homescreen.gif")
+    ).getImage();
 
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 
         // 🎵 Start background music
         SoundManager.playLoop("/com/horrorgame/assets/audio/menu_music.wav");
         // ===== TITLE =====
-        title = new JLabel("Horror Anomaly", SwingConstants.CENTER);
+        title = new JLabel("DO NOT IGNORE", SwingConstants.CENTER);
         title.setForeground(Color.RED);
 
         int titleSize = screenSize.width / 15;
@@ -35,7 +41,7 @@ public class MainMenuPanel extends JPanel {
 
         // ===== BUTTON PANEL =====
         JPanel buttonPanel = new JPanel();
-        buttonPanel.setBackground(Color.BLACK);
+        buttonPanel.setOpaque(false);
         buttonPanel.setLayout(new GridLayout(2, 1, 0, 40));
         buttonPanel.setBorder(BorderFactory.createEmptyBorder(100, 500, 200, 500));
 
@@ -108,6 +114,10 @@ public class MainMenuPanel extends JPanel {
         super.paintComponent(g);
 
         Graphics2D g2 = (Graphics2D) g;
+
+        if (backgroundGif != null) {
+        g2.drawImage(backgroundGif, 0, 0, getWidth(), getHeight(), this);
+        }
 
         // 🎛 Static Noise
         for (int i = 0; i < 3000; i++) {
