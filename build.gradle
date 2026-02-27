@@ -1,0 +1,36 @@
+plugins {
+    id "java"
+    id "application"
+    id "org.openjfx.javafxplugin" version "0.1.0"
+}
+
+repositories {
+    mavenCentral()
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ["DO NOT IGNORE/src"]
+        }
+        resources {
+            srcDirs = ["DO NOT IGNORE/src"]
+        }
+    }
+}
+
+application {
+    mainClass = "com.horrorgame.fx.FxMain"
+}
+
+javafx {
+    version = "21.0.10"
+    modules = ["javafx.controls", "javafx.swing", "javafx.media"]
+}
+
