@@ -26,23 +26,38 @@ public class DifficultyPanel extends JPanel {
         setBackground(Color.BLACK);
         setLayout(new BorderLayout());
 
-        java.net.URL bgUrl = getClass().getResource("/com/horrorgame/assets/images/difficulty.gif");
+        java.net.URL bgUrl = getClass().getResource("/com/horrorgame/assets/images/difficultyscreen.gif");
         if (bgUrl != null) {
             backgroundGif = new javax.swing.ImageIcon(bgUrl).getImage();
         } else {
             backgroundGif = null;
         }
 
-        JLabel title = new JLabel("Select Difficulty", SwingConstants.CENTER);
-        title.setForeground(Color.RED);
-
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
         int titleSize = screenSize.width / 18;
 
+        JLabel title = new JLabel("Select Difficulty", SwingConstants.CENTER);
+        title.setForeground(Color.RED);
         title.setFont(new Font("Chiller", Font.BOLD, titleSize));
         title.setBorder(BorderFactory.createEmptyBorder(100, 0, 50, 0));
 
-        add(title, BorderLayout.NORTH);
+        JPanel topPanel = new JPanel(new BorderLayout());
+        topPanel.setOpaque(false);
+
+        JButton backButton = new JButton("Back");
+        int backFontSize = screenSize.width / 60;
+        backButton.setFont(new Font("Chiller", Font.BOLD, backFontSize));
+        backButton.setBackground(new Color(30, 0, 0));
+        backButton.setForeground(Color.RED);
+        backButton.setFocusPainted(false);
+        backButton.setBorderPainted(false);
+        backButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        backButton.addActionListener(e -> frame.showScreen("MainMenu"));
+
+        topPanel.add(backButton, BorderLayout.WEST);
+        topPanel.add(title, BorderLayout.CENTER);
+
+        add(topPanel, BorderLayout.NORTH);
 
         JPanel buttonPanel = new JPanel();
         buttonPanel.setBackground(Color.BLACK);
@@ -65,17 +80,17 @@ public class DifficultyPanel extends JPanel {
 
         easy.addActionListener(e -> {
             SoundManager.stopLoop();
-            frame.startGame(Difficulty.EASY);
+            frame.showInstructions(Difficulty.EASY);
         });
 
         medium.addActionListener(e -> {
             SoundManager.stopLoop();
-            frame.startGame(Difficulty.MEDIUM);
+            frame.showInstructions(Difficulty.MEDIUM);
         });
 
         hard.addActionListener(e -> {
             SoundManager.stopLoop();
-            frame.startGame(Difficulty.HARD);
+            frame.showInstructions(Difficulty.HARD);
         });
     }
 
@@ -93,7 +108,7 @@ public class DifficultyPanel extends JPanel {
             @Override
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 button.setBackground(new Color(120, 0, 0));
-                SoundManager.playSound("/com/horrorgame/assets/audio/hover_click.wav");
+                SoundManager.playSound("/com/horrorgame/assets/audio/hover_click.WAV");
             }
 
             @Override

@@ -45,6 +45,9 @@ public class GamePanel extends JPanel {
     private int gameMinutesTotal = 0;
     private Timer gameTimer;
     private Timer anomalySpawnTimer;
+    private Timer criticalThreatTimer;
+    private int criticalThreatSeconds = 0;
+    private boolean isGameOverSequence = false;
 
     // Threat / reporting
     private int threatLevel = 0; // 0–100 scale
@@ -54,10 +57,12 @@ public class GamePanel extends JPanel {
     private ReportResultType pendingReportResult;
 
     // UI
+    // NOTE: Temporarily disabled JavaFX video background to avoid white-screen / overlay issues.
+    // private VideoBackgroundPanel videoBackgroundPanel;
+    private final RoomMediaLibrary mediaLibrary = RoomMediaLibrary.load(GamePanel.class);
     private JLabel timeLabel;
     private JLabel threatLabel;
     private JLabel reportingLabel;
-    private JLabel cameraImageLabel;
     private JLabel jumpscareLabel;
     private JButton leftBtn;
     private JButton rightBtn;
@@ -65,26 +70,40 @@ public class GamePanel extends JPanel {
     private JButton pauseBtn;
     private JPanel reportOverlay;
     private JPanel pauseOverlay;
+    private JPanel gameOverOverlay;
     private FeedbackLabel feedbackLabel;
+    private int secondsOnCurrentCamera = 0;
+
+    private static final int REPORT_SUCCESS_DELAY_MS = 1500;
+    private static final int CRITICAL_THREAT_SECONDS_TO_FAIL = 10;
 
     private static class CameraData {
         boolean hasAnomaly;
         int anomalyType; // 0 = none
-        final ImageIcon normalIcon;
-        final ImageIcon anomalyIcon;
+        final String roomKey;
+        final String roomPrefix;
+        final String normalMediaPath;
+        String anomalyMediaPath;
 
-        CameraData(ImageIcon normalIcon, ImageIcon anomalyIcon) {
+        CameraData(String roomKey, String roomPrefix, String normalMediaPath, String anomalyMediaPath) {
             this.hasAnomaly = false;
             this.anomalyType = 0;
-            this.normalIcon = normalIcon;
-            this.anomalyIcon = anomalyIcon;
+            this.roomKey = roomKey;
+            this.roomPrefix = roomPrefix;
+            this.normalMediaPath = normalMediaPath;
+            this.anomalyMediaPath = anomalyMediaPath;
         }
     }
 
     private static final String[] ANOMALY_TYPES = {
-            "Imagery Change", "Object Displacement", "Mimic / Duplicate",
-            "Flawed Human", "Pure Form Shadow", "Preacher Entity",
-            "Electrical Disturbance", "Tulpa Reflection", "Corpse Appearance"
+            "Missing Object",
+            "Object Displacement",
+            "Shadowy Figure",
+            "Intruder",
+            "Strange Imagery",
+            "Demonic",
+            "Extra Object",
+            "Audio Disturbance"
     };
 
     private static final String JUMPSCARE_GIF_PATH = "/com/horrorgame/assets/gif/jumpscare.gif";
@@ -122,46 +141,108 @@ public class GamePanel extends JPanel {
         });
 
         SwingUtilities.invokeLater(this::layoutUI);
+        randomizeStartingCamera();
         updateCameraView();
     }
 
     private void initCameras() {
-        for (int i = 0; i < 5; i++) {
-            ImageIcon normalIcon = loadCameraIcon(i + 1, false);
-            ImageIcon anomalyIcon = loadCameraIcon(i + 1, true);
-            cameras.add(new CameraData(normalIcon, anomalyIcon));
+        String[] roomKeys = {"garage", "kitchen", "living_room", "stairs", "basement", "bedroom"};
+        String[] roomPrefixes = {"Garage", "Kitchen", "LivingRoom", "Stairs", "Basement", "Bedroom"};
+        for (int i = 0; i < roomKeys.length; i++) {
+            String roomKey = roomKeys[i];
+            String roomPrefix = roomPrefixes[i];
+            String normalMediaPath = mediaLibrary.getRandomNormal(roomKey);
+            cameras.add(new CameraData(roomKey, roomPrefix, normalMediaPath, null));
         }
-        spawnRandomAnomaly();
     }
 
-    private ImageIcon loadCameraIcon(int cameraIndex, boolean anomaly) {
-        String suffix = anomaly ? "_anomaly.gif" : "_normal.gif";
-        String path = "/com/horrorgame/assets/cameras/cam" + cameraIndex + suffix;
-        java.net.URL resource = getClass().getResource(path);
-        if (resource != null) {
-            return new ImageIcon(resource);
+    private void randomizeStartingCamera() {
+        if (cameras.isEmpty()) {
+            currentCamera = 0;
+            return;
         }
-        return null;
+        currentCamera = random.nextInt(cameras.size());
+    }
+
+    private RoomMediaLibrary.AnomalyType getAnomalyTypeFromIndex(int index) {
+        switch (index) {
+            case 1:
+                return RoomMediaLibrary.AnomalyType.MISSING_OBJECT;
+            case 2:
+                return RoomMediaLibrary.AnomalyType.OBJECT_DISPLACEMENT;
+            case 3:
+                return RoomMediaLibrary.AnomalyType.SHADOWY_FIGURE;
+            case 4:
+                return RoomMediaLibrary.AnomalyType.INTRUDER;
+            case 5:
+                return RoomMediaLibrary.AnomalyType.STRANGE_IMAGERY;
+            case 6:
+                return RoomMediaLibrary.AnomalyType.DEMONIC;
+            case 7:
+                return RoomMediaLibrary.AnomalyType.EXTRA_OBJECT;
+            case 8:
+                return RoomMediaLibrary.AnomalyType.AUDIO_DISTURBANCE;
+            default:
+                return null;
+        }
     }
 
     private void spawnRandomAnomaly() {
         List<Integer> availableCameras = new ArrayList<>();
         for (int i = 0; i < cameras.size(); i++) {
-            if (!cameras.get(i).hasAnomaly) {
+            CameraData cam = cameras.get(i);
+            if (!cam.hasAnomaly && i != currentCamera) {
                 availableCameras.add(i);
             }
         }
         if (availableCameras.isEmpty()) {
             return;
         }
-        int index = availableCameras.get(random.nextInt(availableCameras.size()));
-        int type = random.nextInt(ANOMALY_TYPES.length) + 1;
-        CameraData data = cameras.get(index);
-        data.hasAnomaly = true;
-        data.anomalyType = type;
-        if (index == currentCamera) {
+        int cameraIndex = availableCameras.get(random.nextInt(availableCameras.size()));
+        CameraData data = cameras.get(cameraIndex);
+
+        int[] shuffledTypeIndices = buildShuffledTypeIndices();
+        for (int typeIndex : shuffledTypeIndices) {
+            int type = typeIndex + 1;
+            String anomalyPath = loadAnomalyMediaPathForCamera(cameraIndex, type);
+            if (anomalyPath == null) {
+                continue;
+            }
+            data.hasAnomaly = true;
+            data.anomalyType = type;
+            data.anomalyMediaPath = anomalyPath;
+            break;
+        }
+
+        if (data.hasAnomaly && cameraIndex == currentCamera) {
             updateCameraView();
         }
+    }
+
+    private int[] buildShuffledTypeIndices() {
+        int[] indices = new int[ANOMALY_TYPES.length];
+        for (int i = 0; i < indices.length; i++) {
+            indices[i] = i;
+        }
+        for (int i = indices.length - 1; i > 0; i--) {
+            int j = random.nextInt(i + 1);
+            int tmp = indices[i];
+            indices[i] = indices[j];
+            indices[j] = tmp;
+        }
+        return indices;
+    }
+
+    private String loadAnomalyMediaPathForCamera(int cameraIndex, int anomalyType) {
+        if (cameraIndex < 0 || cameraIndex >= cameras.size()) {
+            return null;
+        }
+        CameraData data = cameras.get(cameraIndex);
+        RoomMediaLibrary.AnomalyType type = getAnomalyTypeFromIndex(anomalyType);
+        if (type == null) {
+            return null;
+        }
+        return mediaLibrary.getRandomAnomaly(data.roomKey, type);
     }
 
     private void createUIComponents() {
@@ -181,9 +262,6 @@ public class GamePanel extends JPanel {
         reportingLabel.setFont(new Font("Arial", Font.BOLD, 28));
         reportingLabel.setVisible(false);
         add(reportingLabel);
-
-        cameraImageLabel = new JLabel("", SwingConstants.CENTER);
-        add(cameraImageLabel);
 
         leftBtn = createNavButton("<", e -> prevCamera());
         rightBtn = createNavButton(">", e -> nextCamera());
@@ -239,14 +317,10 @@ public class GamePanel extends JPanel {
             return;
         }
 
+        ensureComponentLayering();
+
         timeLabel.setBounds(40, 25, 380, 50);
         threatLabel.setBounds(40, 70, 380, 30);
-
-        int cameraX = w / 2 - (int) (w * 0.35);
-        int cameraY = 120;
-        int cameraWidth = (int) (w * 0.7);
-        int cameraHeight = h - 260;
-        cameraImageLabel.setBounds(cameraX, cameraY, cameraWidth, cameraHeight);
 
         leftBtn.setBounds(40, h / 2 - 70, 110, 140);
         rightBtn.setBounds(w - 150, h / 2 - 70, 110, 140);
@@ -259,6 +333,25 @@ public class GamePanel extends JPanel {
 
         if (jumpscareLabel != null) {
             jumpscareLabel.setBounds(0, 0, w, h);
+        }
+
+        if (gameOverOverlay != null) {
+            gameOverOverlay.setBounds(0, 0, w, h);
+        }
+    }
+
+    private void ensureComponentLayering() {
+        if (reportOverlay != null) {
+            setComponentZOrder(reportOverlay, getComponentCount() - 1);
+        }
+        if (pauseOverlay != null) {
+            setComponentZOrder(pauseOverlay, getComponentCount() - 1);
+        }
+        if (gameOverOverlay != null) {
+            setComponentZOrder(gameOverOverlay, getComponentCount() - 1);
+        }
+        if (jumpscareLabel != null) {
+            setComponentZOrder(jumpscareLabel, getComponentCount() - 1);
         }
     }
 
@@ -347,11 +440,20 @@ public class GamePanel extends JPanel {
         }
 
         if (reportedType == cam.anomalyType) {
-            cam.hasAnomaly = false;
-            cam.anomalyType = 0;
-            decreaseThreat(getThreatDecreaseOnCorrect());
-            updateCameraView();
-            showFeedback("ANOMALY REMOVED", new Color(60, 255, 60));
+            reportBtn.setEnabled(false);
+            reportingLabel.setVisible(true);
+            Timer t = new Timer(REPORT_SUCCESS_DELAY_MS, e -> {
+                cam.hasAnomaly = false;
+                cam.anomalyType = 0;
+                cam.anomalyMediaPath = null;
+                decreaseThreat(getThreatDecreaseOnCorrect());
+                reportingLabel.setVisible(false);
+                reportBtn.setEnabled(true);
+                updateCameraView();
+                showFeedback("ANOMALY REMOVED", new Color(60, 255, 60));
+            });
+            t.setRepeats(false);
+            t.start();
             if (random.nextDouble() < 0.65) {
                 spawnRandomAnomaly();
             }
@@ -375,6 +477,9 @@ public class GamePanel extends JPanel {
     private void decreaseThreat(int amount) {
         threatLevel = Math.max(0, threatLevel - amount);
         updateThreatLabel();
+        if (threatLevel < 100) {
+            stopCriticalThreatCountdown();
+        }
     }
 
     private void updateThreatLabel() {
@@ -525,6 +630,9 @@ public class GamePanel extends JPanel {
             if (paused) {
                 return;
             }
+            if (gameMinutesTotal < 30) {
+                return;
+            }
             if (random.nextDouble() <= chance) {
                 spawnRandomAnomaly();
             }
@@ -586,6 +694,11 @@ public class GamePanel extends JPanel {
                 dispH = 12;
             }
             timeLabel.setText(String.format("%d:%02d AM", dispH, m));
+            secondsOnCurrentCamera++;
+            if (secondsOnCurrentCamera >= 20) {
+                secondsOnCurrentCamera = 0;
+                nextCamera();
+            }
         });
         gameTimer.start();
     }
@@ -603,38 +716,32 @@ public class GamePanel extends JPanel {
         if (reportingLabelTimer != null) {
             reportingLabelTimer.stop();
         }
+        if (criticalThreatTimer != null) {
+            criticalThreatTimer.stop();
+        }
     }
 
     private void updateCameraView() {
-        CameraData cam = cameras.get(currentCamera);
-        if (cam.hasAnomaly && cam.anomalyIcon != null) {
-            cameraImageLabel.setIcon(cam.anomalyIcon);
-        } else if (cam.normalIcon != null) {
-            cameraImageLabel.setIcon(cam.normalIcon);
-        } else {
-            cameraImageLabel.setIcon(null);
-        }
-        if (cam.hasAnomaly) {
-            setBackground(new Color(28, 0, 0));
-        } else {
-            setBackground(new Color(5, 5, 18));
+        if (isGameOverSequence) {
+            return;
         }
         repaint();
     }
 
     private void prevCamera() {
         currentCamera = (currentCamera - 1 + cameras.size()) % cameras.size();
+        secondsOnCurrentCamera = 0;
         updateCameraView();
     }
 
     private void nextCamera() {
         currentCamera = (currentCamera + 1) % cameras.size();
+        secondsOnCurrentCamera = 0;
         updateCameraView();
     }
 
     private void endGameWithThreatOverrun() {
-        stopAllTimers();
-        showJumpscare();
+        startCriticalThreatCountdown();
     }
 
     private void showJumpscare() {
@@ -653,18 +760,103 @@ public class GamePanel extends JPanel {
         jumpscareLabel.setBounds(0, 0, getWidth(), getHeight());
         jumpscareLabel.setVisible(true);
         repaint();
+    }
 
-        Timer t = new Timer(2000, e -> {
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Threat level reached CRITICAL.\nYou failed your shift.",
-                    "Overrun",
-                    JOptionPane.ERROR_MESSAGE
-            );
-            frame.showScreen("MainMenu");
+    private void startCriticalThreatCountdown() {
+        if (criticalThreatTimer != null && criticalThreatTimer.isRunning()) {
+            return;
+        }
+        criticalThreatSeconds = 0;
+        criticalThreatTimer = new Timer(1000, e -> {
+            if (paused) {
+                return;
+            }
+            if (threatLevel < 100) {
+                stopCriticalThreatCountdown();
+                return;
+            }
+            criticalThreatSeconds++;
+            if (criticalThreatSeconds >= CRITICAL_THREAT_SECONDS_TO_FAIL) {
+                criticalThreatTimer.stop();
+                triggerGameOverWithRoomJumpscare();
+            }
         });
+        criticalThreatTimer.start();
+    }
+
+    private void stopCriticalThreatCountdown() {
+        criticalThreatSeconds = 0;
+        if (criticalThreatTimer != null) {
+            criticalThreatTimer.stop();
+        }
+    }
+
+    private void triggerGameOverWithRoomJumpscare() {
+        if (isGameOverSequence) {
+            return;
+        }
+        isGameOverSequence = true;
+        stopAllTimers();
+
+        if (reportOverlay != null) {
+            reportOverlay.setVisible(false);
+        }
+        if (pauseOverlay != null) {
+            pauseOverlay.setVisible(false);
+        }
+        reportingLabel.setVisible(false);
+
+        reportBtn.setEnabled(false);
+        pauseBtn.setEnabled(false);
+        leftBtn.setEnabled(false);
+        rightBtn.setEnabled(false);
+
+        currentCamera = (currentCamera + 1) % cameras.size();
+        showFallbackJumpscareGifThenGameOver();
+    }
+
+
+
+    private void showFallbackJumpscareGifThenGameOver() {
+        showJumpscare();
+        Timer t = new Timer(2000, e -> showGameOverOverlay());
         t.setRepeats(false);
         t.start();
+    }
+
+    private void showGameOverOverlay() {
+        if (gameOverOverlay == null) {
+            gameOverOverlay = new JPanel(new GridBagLayout());
+            gameOverOverlay.setBackground(new Color(0, 0, 0, 210));
+            gameOverOverlay.setVisible(false);
+            add(gameOverOverlay);
+
+            GridBagConstraints gbc = new GridBagConstraints();
+            gbc.insets = new Insets(20, 40, 20, 40);
+            gbc.fill = GridBagConstraints.HORIZONTAL;
+            gbc.gridx = 0;
+            gbc.gridy = 0;
+
+            JLabel title = new JLabel("YOU FAILED TO SURVIVE UNTIL 6:00 AM", SwingConstants.CENTER);
+            title.setForeground(new Color(255, 80, 80));
+            title.setFont(new Font("Arial", Font.BOLD, 28));
+            gameOverOverlay.add(title, gbc);
+
+            gbc.gridy++;
+            JButton mainMenu = createMainButton("MAIN MENU", e -> {
+                frame.showScreen("MainMenu");
+            });
+            gameOverOverlay.add(mainMenu, gbc);
+
+            gbc.gridy++;
+            JButton playAgain = createMainButton("PLAY AGAIN", e -> {
+                frame.showScreen("Difficulty");
+            });
+            gameOverOverlay.add(playAgain, gbc);
+        }
+        gameOverOverlay.setBounds(0, 0, getWidth(), getHeight());
+        gameOverOverlay.setVisible(true);
+        repaint();
     }
 
     @Override

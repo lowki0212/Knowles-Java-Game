@@ -32,7 +32,7 @@ public class MainMenuPanel extends JPanel {
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 
         // 🎵 Start background music
-        SoundManager.playLoop("/com/horrorgame/assets/audio/menu_music.wav");
+        SoundManager.playLoop("/com/horrorgame/assets/audio/menu_music.WAV");
         // ===== TITLE =====
         title = new JLabel("DO NOT IGNORE", SwingConstants.CENTER);
         title.setForeground(Color.RED);
@@ -104,7 +104,7 @@ public class MainMenuPanel extends JPanel {
                 button.setBackground(new Color(120, 0, 0));
 
                 // 🔊 Play hover clock click
-                SoundManager.playSound("/com/horrorgame/assets/audio/hover_click.wav");            }
+                SoundManager.playSound("/com/horrorgame/assets/audio/hover_click.WAV");            }
 
             public void mouseExited(MouseEvent evt) {
                 button.setBackground(new Color(60, 0, 0));
