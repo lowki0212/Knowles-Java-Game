@@ -1,0 +1,23 @@
+### Java / IDE
+*.class
+*.log
+*.tmp
+*.swp
+.classpath
+.project
+.settings/
+.idea/
+*.iml
+.vscode/
+
+### Gradle
+.gradle/
+build/
+
+### OS
+Thumbs.db
+Desktop.ini
+
+### Existing compiled output
+DO NOT IGNORE/bin/
+
