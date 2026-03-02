@@ -23,6 +23,7 @@ import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
+import com.horrorgame.audio.SoundManager;
 
 public class GamePanel extends JPanel {
 
@@ -120,7 +121,7 @@ public class GamePanel extends JPanel {
         createPauseOverlay();
         startGameTimer();
         startAnomalySpawner();
-
+        SoundManager.playLoop("/com/horrorgame/assets/audio/VHSNoise.wav");
         feedbackLabel = new FeedbackLabel();
         add(feedbackLabel);
 
@@ -719,6 +720,8 @@ public class GamePanel extends JPanel {
         if (criticalThreatTimer != null) {
             criticalThreatTimer.stop();
         }
+        SoundManager.stopLoop(); // stop background audio when game ends
+
     }
 
     private void updateCameraView() {

@@ -21,18 +21,14 @@ public class MainMenuPanel extends JPanel {
         //setBackground(Color.BLACK);
         setLayout(new BorderLayout());
 
-        java.net.URL bgUrl = getClass().getResource("/com/horrorgame/assets/images/homescreen.gif");
-        if (bgUrl != null) {
-            backgroundGif = new ImageIcon(bgUrl).getImage();
-        } else {
-            backgroundGif = null;
-            setBackground(Color.BLACK);
-        }
+        backgroundGif = new ImageIcon(
+        getClass().getResource("/com/horrorgame/assets/images/homescreen.gif")
+    ).getImage();
 
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 
-        // 🎵 Start background music
-        SoundManager.playLoop("/com/horrorgame/assets/audio/menu_music.WAV");
+        // 🎵 Start menu background music
+        SoundManager.playLoop("/com/horrorgame/assets/audio/menu_music.wav");
         // ===== TITLE =====
         title = new JLabel("DO NOT IGNORE", SwingConstants.CENTER);
         title.setForeground(Color.RED);
@@ -104,7 +100,7 @@ public class MainMenuPanel extends JPanel {
                 button.setBackground(new Color(120, 0, 0));
 
                 // 🔊 Play hover clock click
-                SoundManager.playSound("/com/horrorgame/assets/audio/hover_click.WAV");            }
+                SoundManager.playSound("/com/horrorgame/assets/audio/hover_click.wav");            }
 
             public void mouseExited(MouseEvent evt) {
                 button.setBackground(new Color(60, 0, 0));

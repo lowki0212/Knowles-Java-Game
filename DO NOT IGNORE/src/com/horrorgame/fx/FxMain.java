@@ -72,7 +72,7 @@ public class FxMain extends Application {
     private Button reportButtonGame;
     private Label reportCooldownLabel;
     private Timeline reportCooldownTimeline;
-    private static final int REPORT_COOLDOWN_SECONDS = 10;
+    private static final int REPORT_COOLDOWN_SECONDS = 5;
     private boolean deathCountdownActive = false;
 
     private static class RoomState {
@@ -96,6 +96,8 @@ public class FxMain extends Application {
     };
 
     private DifficultyLevel currentDifficulty = DifficultyLevel.MEDIUM;
+    private static final String CAMERA_TRANSITION_PATH = "/com/horrorgame/assets/transition/camera_transition_sfx.mp4";
+    private boolean cameraTransitionPlaying = false;
 
     public static void main(String[] args) {
         launch(args);
@@ -296,6 +298,7 @@ public class FxMain extends Application {
         styleMenuButton(startShiftButton);
         startShiftButton.setOnAction(e -> {
             SoundManager.stopLoop();
+            SoundManager.playLoop("/com/horrorgame/assets/audio/VHSNoise.wav");
             stopMedia();
             hideReportOverlay();
             resetGameState();
@@ -365,18 +368,8 @@ public class FxMain extends Application {
         styleNavButton(nextButton);
         styleControlButton(reportButtonGame);
 
-        prevButton.setOnAction(e -> {
-            currentRoomIndex = (currentRoomIndex - 1 + roomKeys.size()) % roomKeys.size();
-            playCurrentRoomNormal();
-            updateRoomLabel();
-            secondsOnCurrentRoom = 0;
-        });
-        nextButton.setOnAction(e -> {
-            currentRoomIndex = (currentRoomIndex + 1) % roomKeys.size();
-            playCurrentRoomNormal();
-            updateRoomLabel();
-            secondsOnCurrentRoom = 0;
-        });
+        prevButton.setOnAction(e -> playCameraTransitionAndSwitchRoom(-1));
+        nextButton.setOnAction(e -> playCameraTransitionAndSwitchRoom(1));
 
         reportButtonGame.setOnAction(e -> showReportOverlay());
 
@@ -435,6 +428,41 @@ public class FxMain extends Application {
     private void styleControlButton(Button button) {
         button.setStyle("-fx-background-color: #300000; -fx-text-fill: #ffcccc; -fx-font-size: 18px; -fx-font-family: Arial; -fx-font-weight: bold;");
         button.setPrefWidth(220);
+    }
+
+    private void playCameraTransitionAndSwitchRoom(int delta) {
+        if (cameraTransitionPlaying || roomKeys.isEmpty()) {
+            return;
+        }
+        cameraTransitionPlaying = true;
+
+        int targetIndex = (currentRoomIndex + delta + roomKeys.size()) % roomKeys.size();
+
+        URL resource = getClass().getResource(CAMERA_TRANSITION_PATH);
+        if (resource == null) {
+            // Fallback: no transition video, just switch immediately.
+            currentRoomIndex = targetIndex;
+            playCurrentRoomNormal();
+            updateRoomLabel();
+            secondsOnCurrentRoom = 0;
+            cameraTransitionPlaying = false;
+            return;
+        }
+
+        String uri = resource.toExternalForm();
+        stopMedia();
+        Media media = new Media(uri);
+        mediaPlayer = new MediaPlayer(media);
+        mediaPlayer.setCycleCount(1);
+        mediaView.setMediaPlayer(mediaPlayer);
+        mediaPlayer.setOnEndOfMedia(() -> Platform.runLater(() -> {
+            currentRoomIndex = targetIndex;
+            playCurrentRoomNormal();
+            updateRoomLabel();
+            secondsOnCurrentRoom = 0;
+            cameraTransitionPlaying = false;
+        }));
+        mediaPlayer.play();
     }
 
     private void playCurrentRoomNormal() {
@@ -598,15 +626,28 @@ public class FxMain extends Application {
         if (random.nextDouble() > spawnChance) {
             return;
         }
-        int roomIndex = random.nextInt(roomKeys.size());
+        // Choose a room that is NOT the currently viewed one and that has no anomaly.
+        int roomIndex = -1;
+        for (int attempts = 0; attempts < roomKeys.size(); attempts++) {
+            int candidate = random.nextInt(roomKeys.size());
+            if (candidate == currentRoomIndex) {
+                continue;
+            }
+            String candidateKey = roomKeys.get(candidate);
+            RoomState candidateState = roomStates.get(candidateKey);
+            if (candidateState == null || !candidateState.hasAnomaly) {
+                roomIndex = candidate;
+                break;
+            }
+        }
+        if (roomIndex < 0) {
+            return;
+        }
         String roomKey = roomKeys.get(roomIndex);
         RoomState state = roomStates.get(roomKey);
         if (state == null) {
             state = new RoomState();
             roomStates.put(roomKey, state);
-        }
-        if (state.hasAnomaly) {
-            return;
         }
         List<RoomMediaLibrary.AnomalyType> available = mediaLibrary.getAvailableAnomalyTypes(roomKey);
         if (available.isEmpty()) {
@@ -617,10 +658,6 @@ public class FxMain extends Application {
         state.anomalyType = type;
         state.anomalySecondsAlive = 0;
         state.penaltyApplied = false;
-
-        if (roomIndex == currentRoomIndex) {
-            playCurrentRoomNormal();
-        }
     }
 
     private double getAnomalySpawnChance() {
@@ -973,10 +1010,18 @@ public class FxMain extends Application {
         setReportTypeButtonsEnabled(false);
 
         if (roomKeys.isEmpty()) {
-            reportStatusLabel.setText("No anomaly detected");
-            Timeline wrongDelay = new Timeline(new KeyFrame(Duration.millis(1500), e -> hideReportOverlay()));
-            wrongDelay.setCycleCount(1);
-            wrongDelay.play();
+            reportStatusLabel.setText("Reporting...");
+            reportStatusLabel.setStyle("-fx-text-fill: #ffaa44; -fx-font-size: 20px; -fx-font-family: Arial;");
+            Timeline delay = new Timeline(new KeyFrame(Duration.seconds(5), e -> {
+                increaseThreat(getMissAnomalyPenalty());
+                reportStatusLabel.setText("NO ANOMALY FOUND");
+                reportStatusLabel.setStyle("-fx-text-fill: #ff5555; -fx-font-size: 20px; -fx-font-family: Arial;");
+                Timeline doneDelay = new Timeline(new KeyFrame(Duration.millis(1200), ev -> hideReportOverlay()));
+                doneDelay.setCycleCount(1);
+                doneDelay.play();
+            }));
+            delay.setCycleCount(1);
+            delay.play();
             return;
         }
         final int roomIndexAtReport = currentRoomIndex;
@@ -984,25 +1029,24 @@ public class FxMain extends Application {
         RoomState state = roomStates.get(roomKey);
         RoomMediaLibrary.AnomalyType selectedType = mapLabelToAnomalyType(selectedLabel);
 
-        if (state == null || !state.hasAnomaly) {
-            reportStatusLabel.setText("No anomaly detected");
-            increaseThreat(getMissAnomalyPenalty());
-            Timeline wrongDelay = new Timeline(new KeyFrame(Duration.millis(1500), e -> hideReportOverlay()));
-            wrongDelay.setCycleCount(1);
-            wrongDelay.play();
-            return;
-        }
-
-        if (selectedType == null || state.anomalyType != selectedType) {
-            reportStatusLabel.setText("No anomaly detected");
-            increaseThreat(getMissAnomalyPenalty());
-            Timeline wrongDelay = new Timeline(new KeyFrame(Duration.millis(1500), e -> hideReportOverlay()));
-            wrongDelay.setCycleCount(1);
-            wrongDelay.play();
-            return;
-        }
-
+        // Show a unified "Reporting..." phase before revealing result.
         reportStatusLabel.setText("Reporting...");
+        reportStatusLabel.setStyle("-fx-text-fill: #ffaa44; -fx-font-size: 20px; -fx-font-family: Arial;");
+
+        if (state == null || !state.hasAnomaly || selectedType == null || state.anomalyType != selectedType) {
+            Timeline delay = new Timeline(new KeyFrame(Duration.seconds(5), e -> {
+                increaseThreat(getMissAnomalyPenalty());
+                reportStatusLabel.setText("NO ANOMALY FOUND");
+                reportStatusLabel.setStyle("-fx-text-fill: #ff5555; -fx-font-size: 20px; -fx-font-family: Arial;");
+                Timeline doneDelay = new Timeline(new KeyFrame(Duration.millis(1200), ev -> hideReportOverlay()));
+                doneDelay.setCycleCount(1);
+                doneDelay.play();
+            }));
+            delay.setCycleCount(1);
+            delay.play();
+            return;
+        }
+
         final String roomKeyFinal = roomKey;
         Timeline delay = new Timeline(new KeyFrame(Duration.seconds(5), e -> {
             RoomState s = roomStates.get(roomKeyFinal);
@@ -1016,7 +1060,8 @@ public class FxMain extends Application {
             if (currentRoomIndex == roomIndexAtReport) {
                 playCurrentRoomNormal();
             }
-            reportStatusLabel.setText("Anomaly removed");
+            reportStatusLabel.setText("ANOMALY REMOVED");
+            reportStatusLabel.setStyle("-fx-text-fill: #88ff88; -fx-font-size: 20px; -fx-font-family: Arial;");
             Timeline doneDelay = new Timeline(new KeyFrame(Duration.millis(1200), ev -> hideReportOverlay()));
             doneDelay.setCycleCount(1);
             doneDelay.play();

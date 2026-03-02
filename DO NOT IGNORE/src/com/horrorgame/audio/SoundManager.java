@@ -28,6 +28,16 @@ public class SoundManager {
 
             backgroundClip = AudioSystem.getClip();
             backgroundClip.open(audio);
+            // Try to gently boost volume if supported
+            try {
+                FloatControl gainControl = (FloatControl) backgroundClip.getControl(FloatControl.Type.MASTER_GAIN);
+                float current = gainControl.getValue();
+                float boost = 4.0f; // about +4 dB
+                float newValue = Math.min(gainControl.getMaximum(), current + boost);
+                gainControl.setValue(newValue);
+            } catch (IllegalArgumentException ignored) {
+                // Clip does not support MASTER_GAIN; just play at default volume
+            }
             backgroundClip.loop(Clip.LOOP_CONTINUOUSLY);
             backgroundClip.start();
 
