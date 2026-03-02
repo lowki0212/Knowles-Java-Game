@@ -65,8 +65,14 @@ public class FxMain extends Application {
 
     private StackPane gameRoot;
     private StackPane reportOverlay;
-    private boolean reporting = false;
+    private Label reportStatusLabel;
+    private Button[] reportTypeButtons;
+    private boolean reportSubmissionInProgress = false;
     private StackPane pauseOverlay;
+    private Button reportButtonGame;
+    private Label reportCooldownLabel;
+    private Timeline reportCooldownTimeline;
+    private static final int REPORT_COOLDOWN_SECONDS = 10;
     private boolean deathCountdownActive = false;
 
     private static class RoomState {
@@ -290,6 +296,9 @@ public class FxMain extends Application {
         styleMenuButton(startShiftButton);
         startShiftButton.setOnAction(e -> {
             SoundManager.stopLoop();
+            stopMedia();
+            hideReportOverlay();
+            resetGameState();
             currentRoomIndex = random.nextInt(roomKeys.size());
             playCurrentRoomNormal();
             startGameLoop();
@@ -348,11 +357,13 @@ public class FxMain extends Application {
 
         Button prevButton = new Button("<");
         Button nextButton = new Button(">");
-        Button reportButton = new Button("REPORT ANOMALY");
+        reportButtonGame = new Button("REPORT ANOMALY");
+        reportCooldownLabel = new Label("");
+        reportCooldownLabel.setStyle("-fx-text-fill: #ff8888; -fx-font-size: 14px; -fx-font-family: Arial;");
 
         styleNavButton(prevButton);
         styleNavButton(nextButton);
-        styleControlButton(reportButton);
+        styleControlButton(reportButtonGame);
 
         prevButton.setOnAction(e -> {
             currentRoomIndex = (currentRoomIndex - 1 + roomKeys.size()) % roomKeys.size();
@@ -367,7 +378,7 @@ public class FxMain extends Application {
             secondsOnCurrentRoom = 0;
         });
 
-        reportButton.setOnAction(e -> showReportOverlay());
+        reportButtonGame.setOnAction(e -> showReportOverlay());
 
         VBox leftBox = new VBox(prevButton);
         leftBox.setAlignment(Pos.CENTER_LEFT);
@@ -380,7 +391,10 @@ public class FxMain extends Application {
         overlay.setLeft(leftBox);
         overlay.setRight(rightBox);
 
-        HBox bottomBar = new HBox(reportButton);
+        VBox reportButtonContainer = new VBox(4);
+        reportButtonContainer.setAlignment(Pos.CENTER);
+        reportButtonContainer.getChildren().addAll(reportCooldownLabel, reportButtonGame);
+        HBox bottomBar = new HBox(reportButtonContainer);
         bottomBar.setAlignment(Pos.CENTER);
         bottomBar.setStyle("-fx-padding: 0 0 40 0;");
         overlay.setBottom(bottomBar);
@@ -436,6 +450,18 @@ public class FxMain extends Application {
             mediaPath = mediaLibrary.getRandomNormal(roomKey);
         }
         playMedia(mediaPath);
+    }
+
+    private void resetGameState() {
+        for (String key : roomKeys) {
+            RoomState state = roomStates.get(key);
+            if (state != null) {
+                state.hasAnomaly = false;
+                state.anomalyType = null;
+                state.anomalySecondsAlive = 0;
+                state.penaltyApplied = false;
+            }
+        }
     }
 
     private void startGameLoop() {
@@ -646,15 +672,21 @@ public class FxMain extends Application {
     }
 
     private void showReportOverlay() {
-        if (gameRoot == null) {
+        if (gameRoot == null || reportButtonGame == null) {
             return;
         }
-        if (reporting) {
+        if (reportCooldownTimeline != null && reportCooldownTimeline.getStatus() == javafx.animation.Animation.Status.RUNNING) {
+            return;
+        }
+        if (reportSubmissionInProgress) {
             return;
         }
         if (reportOverlay == null) {
             reportOverlay = new StackPane();
             reportOverlay.setStyle("-fx-background-color: rgba(0,0,0,0.75);");
+            reportOverlay.prefWidthProperty().bind(gameRoot.widthProperty());
+            reportOverlay.prefHeightProperty().bind(gameRoot.heightProperty());
+            reportOverlay.setMinSize(0, 0);
 
             VBox box = new VBox(15);
             box.setAlignment(Pos.CENTER);
@@ -664,37 +696,84 @@ public class FxMain extends Application {
             title.setStyle("-fx-text-fill: #ff5555; -fx-font-size: 32px; -fx-font-family: Arial; -fx-font-weight: bold;");
             box.getChildren().add(title);
 
-            for (String type : REPORT_ANOMALY_TYPES) {
-                final String selectedType = type;
-                Button b = new Button(type);
+            reportStatusLabel = new Label("");
+            reportStatusLabel.setStyle("-fx-text-fill: #ffaa44; -fx-font-size: 20px; -fx-font-family: Arial;");
+            box.getChildren().add(reportStatusLabel);
+
+            reportTypeButtons = new Button[REPORT_ANOMALY_TYPES.length];
+            for (int i = 0; i < REPORT_ANOMALY_TYPES.length; i++) {
+                final String selectedType = REPORT_ANOMALY_TYPES[i];
+                Button b = new Button(selectedType);
                 b.setStyle("-fx-background-color: #550000; -fx-text-fill: white; -fx-font-size: 18px; -fx-font-family: Arial;");
                 b.setPrefWidth(400);
-                b.setOnAction(e -> {
-                    handleReport(selectedType);
-                });
+                b.setDisable(false);
+                b.setMouseTransparent(false);
+                b.setFocusTraversable(true);
+                b.setOnAction(e -> handleReport(selectedType));
+                reportTypeButtons[i] = b;
                 box.getChildren().add(b);
             }
 
             Button cancel = new Button("CANCEL");
             cancel.setStyle("-fx-background-color: #444444; -fx-text-fill: white; -fx-font-size: 18px; -fx-font-family: Arial;");
             cancel.setPrefWidth(400);
-            cancel.setOnAction(e -> hideReportOverlay());
+            cancel.setOnAction(e -> hideReportOverlay(false));
             box.getChildren().add(cancel);
 
             reportOverlay.getChildren().add(box);
         }
+        reportStatusLabel.setText("");
+        setReportTypeButtonsEnabled(true);
         if (!gameRoot.getChildren().contains(reportOverlay)) {
             gameRoot.getChildren().add(reportOverlay);
         }
         reportOverlay.setVisible(true);
-        reporting = true;
+    }
+
+    private void setReportTypeButtonsEnabled(boolean enabled) {
+        if (reportTypeButtons != null) {
+            for (Button b : reportTypeButtons) {
+                b.setDisable(!enabled);
+            }
+        }
     }
 
     private void hideReportOverlay() {
-        reporting = false;
+        hideReportOverlay(true);
+    }
+
+    private void hideReportOverlay(boolean startCooldown) {
+        reportSubmissionInProgress = false;
         if (gameRoot != null && reportOverlay != null) {
             gameRoot.getChildren().remove(reportOverlay);
         }
+        if (startCooldown) {
+            startReportCooldown();
+        }
+    }
+
+    private void startReportCooldown() {
+        if (reportButtonGame == null || reportCooldownLabel == null) {
+            return;
+        }
+        if (reportCooldownTimeline != null) {
+            reportCooldownTimeline.stop();
+        }
+        reportButtonGame.setDisable(true);
+        final int[] secondsLeft = {REPORT_COOLDOWN_SECONDS};
+        reportCooldownLabel.setText("Cooldown: " + secondsLeft[0] + "s");
+        reportCooldownTimeline = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
+            secondsLeft[0]--;
+            if (secondsLeft[0] <= 0) {
+                reportCooldownTimeline.stop();
+                reportButtonGame.setDisable(false);
+                reportCooldownLabel.setText("");
+            } else {
+                reportCooldownLabel.setText("Cooldown: " + secondsLeft[0] + "s");
+            }
+        }));
+        reportCooldownTimeline.setCycleCount(REPORT_COOLDOWN_SECONDS);
+        reportCooldownTimeline.play();
     }
 
     private void showPauseOverlay() {
@@ -887,39 +966,60 @@ public class FxMain extends Application {
     }
 
     private void handleReport(String selectedLabel) {
-        if (roomKeys.isEmpty()) {
-            hideReportOverlay();
+        if (reportSubmissionInProgress) {
             return;
         }
-        String roomKey = roomKeys.get(currentRoomIndex);
+        reportSubmissionInProgress = true;
+        setReportTypeButtonsEnabled(false);
+
+        if (roomKeys.isEmpty()) {
+            reportStatusLabel.setText("No anomaly detected");
+            Timeline wrongDelay = new Timeline(new KeyFrame(Duration.millis(1500), e -> hideReportOverlay()));
+            wrongDelay.setCycleCount(1);
+            wrongDelay.play();
+            return;
+        }
+        final int roomIndexAtReport = currentRoomIndex;
+        String roomKey = roomKeys.get(roomIndexAtReport);
         RoomState state = roomStates.get(roomKey);
         RoomMediaLibrary.AnomalyType selectedType = mapLabelToAnomalyType(selectedLabel);
 
         if (state == null || !state.hasAnomaly) {
-            hideReportOverlay();
+            reportStatusLabel.setText("No anomaly detected");
             increaseThreat(getMissAnomalyPenalty());
+            Timeline wrongDelay = new Timeline(new KeyFrame(Duration.millis(1500), e -> hideReportOverlay()));
+            wrongDelay.setCycleCount(1);
+            wrongDelay.play();
             return;
         }
 
         if (selectedType == null || state.anomalyType != selectedType) {
-            hideReportOverlay();
+            reportStatusLabel.setText("No anomaly detected");
             increaseThreat(getMissAnomalyPenalty());
+            Timeline wrongDelay = new Timeline(new KeyFrame(Duration.millis(1500), e -> hideReportOverlay()));
+            wrongDelay.setCycleCount(1);
+            wrongDelay.play();
             return;
         }
 
-        if (reporting) {
-            return;
-        }
-        reporting = true;
+        reportStatusLabel.setText("Reporting...");
+        final String roomKeyFinal = roomKey;
         Timeline delay = new Timeline(new KeyFrame(Duration.seconds(5), e -> {
-            state.hasAnomaly = false;
-            state.anomalyType = null;
-            state.anomalySecondsAlive = 0;
-            state.penaltyApplied = false;
+            RoomState s = roomStates.get(roomKeyFinal);
+            if (s != null) {
+                s.hasAnomaly = false;
+                s.anomalyType = null;
+                s.anomalySecondsAlive = 0;
+                s.penaltyApplied = false;
+            }
             increaseThreat(getCorrectReportDelta());
-            playCurrentRoomNormal();
-            hideReportOverlay();
-            reporting = false;
+            if (currentRoomIndex == roomIndexAtReport) {
+                playCurrentRoomNormal();
+            }
+            reportStatusLabel.setText("Anomaly removed");
+            Timeline doneDelay = new Timeline(new KeyFrame(Duration.millis(1200), ev -> hideReportOverlay()));
+            doneDelay.setCycleCount(1);
+            doneDelay.play();
         }));
         delay.setCycleCount(1);
         delay.play();
