@@ -16,6 +16,7 @@ import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
@@ -61,6 +62,7 @@ public class FxMain extends Application {
     private int secondsOnCurrentRoom = 0;
     private int threatLevel = 0;
     private Label threatLabelGame;
+    private ProgressBar threatBarGame;
     private Button pauseButtonGame;
 
     private StackPane gameRoot;
@@ -72,7 +74,7 @@ public class FxMain extends Application {
     private Button reportButtonGame;
     private Label reportCooldownLabel;
     private Timeline reportCooldownTimeline;
-    private static final int REPORT_COOLDOWN_SECONDS = 5;
+    private static final int REPORT_COOLDOWN_SECONDS = 2;
     private boolean deathCountdownActive = false;
 
     private static class RoomState {
@@ -98,6 +100,7 @@ public class FxMain extends Application {
     private DifficultyLevel currentDifficulty = DifficultyLevel.MEDIUM;
     private static final String CAMERA_TRANSITION_PATH = "/com/horrorgame/assets/transition/camera_transition_sfx.mp4";
     private boolean cameraTransitionPlaying = false;
+    private boolean jumpscareActive = false;
 
     public static void main(String[] args) {
         launch(args);
@@ -338,35 +341,62 @@ public class FxMain extends Application {
         threatLabelGame = new Label();
         threatLabelGame.setStyle("-fx-text-fill: #ffcc66; -fx-font-size: 18px; -fx-font-family: Arial; -fx-font-weight: bold;");
 
+        threatBarGame = new ProgressBar(0);
+        threatBarGame.setPrefWidth(140);
+        threatBarGame.setPrefHeight(10);
+        threatBarGame.setMinHeight(10);
+        threatBarGame.setMaxHeight(10);
+        threatBarGame.setStyle(
+                "-fx-accent: #ff5555;" +
+                "-fx-control-inner-background: rgba(255,255,255,0.12);" +
+                "-fx-background-insets: 0;" +
+                "-fx-background-radius: 6;"
+        );
+
         pauseButtonGame = new Button("PAUSE");
         styleControlButton(pauseButtonGame);
         pauseButtonGame.setOnAction(e -> {
             showPauseOverlay();
         });
 
-        HBox topBar = new HBox(30, timeLabelGame, roomLabelGame, threatLabelGame);
+        HBox topContainer = new HBox(24, timeLabelGame, roomLabelGame, threatLabelGame, threatBarGame);
+        topContainer.setPadding(new javafx.geometry.Insets(12, 24, 12, 24));
+        topContainer.setStyle(
+                "-fx-background-color: rgba(0,0,0,0.72);" +
+                "-fx-background-radius: 0 0 16 0;"
+        );
+
         HBox topRight = new HBox(pauseButtonGame);
         topRight.setAlignment(Pos.TOP_RIGHT);
-        HBox topContainer = new HBox();
-        topContainer.setPadding(new javafx.geometry.Insets(20, 20, 0, 20));
-        topContainer.setSpacing(30);
-        topContainer.getChildren().addAll(timeLabelGame, roomLabelGame, threatLabelGame);
-        HBox.setMargin(pauseButtonGame, new javafx.geometry.Insets(0, 0, 0, 40));
+        HBox.setMargin(pauseButtonGame, new javafx.geometry.Insets(16, 24, 0, 24));
 
         BorderPane topOverlay = new BorderPane();
         topOverlay.setLeft(topContainer);
-        topOverlay.setRight(pauseButtonGame);
+        topOverlay.setRight(topRight);
+        topOverlay.setPadding(new javafx.geometry.Insets(8, 0, 0, 0));
         overlay.setTop(topOverlay);
 
         Button prevButton = new Button("<");
         Button nextButton = new Button(">");
         reportButtonGame = new Button("REPORT ANOMALY");
         reportCooldownLabel = new Label("");
-        reportCooldownLabel.setStyle("-fx-text-fill: #ff8888; -fx-font-size: 14px; -fx-font-family: Arial;");
+        reportCooldownLabel.setStyle("-fx-text-fill: #ffaaaa; -fx-font-size: 14px; -fx-font-family: Arial;");
 
         styleNavButton(prevButton);
         styleNavButton(nextButton);
         styleControlButton(reportButtonGame);
+
+        // Make REPORT ANOMALY the primary call-to-action
+        reportButtonGame.setStyle(
+                "-fx-background-color: linear-gradient(#aa0000,#400000);" +
+                "-fx-text-fill: #ffdede;" +
+                "-fx-font-size: 22px;" +
+                "-fx-font-family: 'Chiller';" +
+                "-fx-font-weight: bold;" +
+                "-fx-background-radius: 18;" +
+                "-fx-effect: dropshadow(gaussian, rgba(255,0,0,0.6), 20, 0.4, 0, 0);"
+        );
+        reportButtonGame.setPrefWidth(320);
 
         prevButton.setOnAction(e -> playCameraTransitionAndSwitchRoom(-1));
         nextButton.setOnAction(e -> playCameraTransitionAndSwitchRoom(1));
@@ -375,11 +405,11 @@ public class FxMain extends Application {
 
         VBox leftBox = new VBox(prevButton);
         leftBox.setAlignment(Pos.CENTER_LEFT);
-        leftBox.setStyle("-fx-padding: 0 0 0 40;");
+        leftBox.setStyle("-fx-padding: 0 0 0 30;");
 
         VBox rightBox = new VBox(nextButton);
         rightBox.setAlignment(Pos.CENTER_RIGHT);
-        rightBox.setStyle("-fx-padding: 0 40 0 0;");
+        rightBox.setStyle("-fx-padding: 0 30 0 0;");
 
         overlay.setLeft(leftBox);
         overlay.setRight(rightBox);
@@ -392,6 +422,15 @@ public class FxMain extends Application {
         bottomBar.setStyle("-fx-padding: 0 0 40 0;");
         overlay.setBottom(bottomBar);
 
+        // Static vignette overlay behind HUD
+        StackPane vignette = new StackPane();
+        vignette.setMouseTransparent(true);
+        vignette.setStyle(
+                "-fx-background-color: radial-gradient(center 50% 50%, radius 80%, " +
+                "rgba(0,0,0,0.0), rgba(0,0,0,0.75));"
+        );
+
+        root.getChildren().add(vignette);
         root.getChildren().add(overlay);
 
         Scene scene = new Scene(root, 1280, 720);
@@ -421,17 +460,34 @@ public class FxMain extends Application {
     }
 
     private void styleNavButton(Button button) {
-        button.setStyle("-fx-background-color: #200000; -fx-text-fill: #ff4444; -fx-font-size: 36px; -fx-font-family: Arial; -fx-font-weight: bold;");
+        button.setStyle(
+                "-fx-background-color: rgba(30,0,0,0.85);" +
+                "-fx-text-fill: #ff4444;" +
+                "-fx-font-size: 32px;" +
+                "-fx-font-family: Arial;" +
+                "-fx-font-weight: bold;" +
+                "-fx-background-radius: 40;" +
+                "-fx-border-color: #ff7777;" +
+                "-fx-border-width: 2;" +
+                "-fx-border-radius: 40;"
+        );
         button.setPrefSize(80, 80);
     }
 
     private void styleControlButton(Button button) {
-        button.setStyle("-fx-background-color: #300000; -fx-text-fill: #ffcccc; -fx-font-size: 18px; -fx-font-family: Arial; -fx-font-weight: bold;");
+        button.setStyle(
+                "-fx-background-color: #300000;" +
+                "-fx-text-fill: #ffcccc;" +
+                "-fx-font-size: 18px;" +
+                "-fx-font-family: Arial;" +
+                "-fx-font-weight: bold;" +
+                "-fx-background-radius: 14;"
+        );
         button.setPrefWidth(220);
     }
 
     private void playCameraTransitionAndSwitchRoom(int delta) {
-        if (cameraTransitionPlaying || roomKeys.isEmpty()) {
+        if (jumpscareActive || cameraTransitionPlaying || roomKeys.isEmpty()) {
             return;
         }
         cameraTransitionPlaying = true;
@@ -481,6 +537,7 @@ public class FxMain extends Application {
     }
 
     private void resetGameState() {
+        jumpscareActive = false;
         for (String key : roomKeys) {
             RoomState state = roomStates.get(key);
             if (state != null) {
@@ -498,6 +555,7 @@ public class FxMain extends Application {
         secondsOnCurrentRoom = 0;
         threatLevel = 0;
         deathCountdownActive = false;
+        jumpscareActive = false;
         updateTimeLabel();
         updateThreatLabel();
         if (gameTimeline != null) {
@@ -589,6 +647,9 @@ public class FxMain extends Application {
             threatLabelGame.setStyle("-fx-text-fill: #ff5555; -fx-font-size: 18px; -fx-font-family: Arial; -fx-font-weight: bold;");
         }
         threatLabelGame.setText(text + " (" + threatLevel + "%)");
+        if (threatBarGame != null) {
+            threatBarGame.setProgress(Math.max(0.0, Math.min(1.0, threatLevel / 100.0)));
+        }
     }
 
     private void tickAnomalies() {
@@ -712,6 +773,9 @@ public class FxMain extends Application {
         if (gameRoot == null || reportButtonGame == null) {
             return;
         }
+        if (jumpscareActive) {
+            return;
+        }
         if (reportCooldownTimeline != null && reportCooldownTimeline.getStatus() == javafx.animation.Animation.Status.RUNNING) {
             return;
         }
@@ -817,6 +881,9 @@ public class FxMain extends Application {
         if (gameRoot == null) {
             return;
         }
+        if (jumpscareActive) {
+            return;
+        }
         paused = true;
         if (mediaPlayer != null) {
             mediaPlayer.pause();
@@ -915,6 +982,10 @@ public class FxMain extends Application {
     }
 
     private void triggerDeathJumpscare() {
+        if (jumpscareActive) {
+            return;
+        }
+        jumpscareActive = true;
         stopDeathCountdown();
         if (roomKeys.isEmpty()) {
             showGameOverOverlay(false);
@@ -953,6 +1024,7 @@ public class FxMain extends Application {
         if (gameRoot == null) {
             return;
         }
+        jumpscareActive = false;
         stopMedia();
         if (gameTimeline != null) {
             gameTimeline.stop();
