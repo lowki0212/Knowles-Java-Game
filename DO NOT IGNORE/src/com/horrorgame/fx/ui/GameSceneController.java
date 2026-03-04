@@ -3,7 +3,11 @@ package com.horrorgame.fx.ui;
 import com.horrorgame.fx.logic.GameActions;
 import com.horrorgame.fx.logic.ThreatManager;
 import java.net.URL;
+import javafx.animation.FadeTransition;
+import javafx.animation.ParallelTransition;
+import javafx.animation.ScaleTransition;
 import javafx.application.Platform;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -16,6 +20,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.scene.media.MediaView;
+import javafx.util.Duration;
 
 /**
  * Builds and manages the in-game JavaFX scene (UI + media playback).
@@ -421,31 +426,71 @@ public class GameSceneController implements GameView {
         }
 
         gameOverOverlay = new StackPane();
-        gameOverOverlay.setStyle("-fx-background-color: rgba(0,0,0,0.85);");
+        gameOverOverlay.setStyle("-fx-background-color: rgba(0,0,0,0.86);");
+        gameOverOverlay.setPickOnBounds(true);
 
-        VBox box = new VBox(20);
+        VBox box = new VBox(18);
         box.setAlignment(Pos.CENTER);
+        box.setPadding(new Insets(24, 32, 24, 32));
 
         String message = win
                 ? "Wake up, it's time for another day.\nYOU WIN!!!"
                 : "YOU DID NOT SURVIVE UNTIL 6:00 AM\nGAME OVER!";
 
         Label label = new Label(message);
-        label.setStyle("-fx-text-fill: #ff5555; -fx-font-size: 28px; -fx-font-family: Arial; -fx-font-weight: bold;");
+        label.setStyle("-fx-text-fill: #ff6666; -fx-font-size: 30px; -fx-font-family: Arial; -fx-font-weight: bold;");
+        label.setWrapText(true);
+        label.setAlignment(Pos.CENTER);
+        label.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
 
         Button mainMenu = new Button("MAIN MENU");
-        mainMenu.setStyle("-fx-background-color: #300000; -fx-text-fill: red; -fx-font-size: 22px; -fx-font-family: 'Chiller'; -fx-font-weight: bold;");
-        mainMenu.setPrefWidth(260);
+        mainMenu.setStyle(
+                "-fx-background-color: linear-gradient(#7a0000,#2a0000);" +
+                "-fx-text-fill: #ffdede;" +
+                "-fx-font-size: 20px;" +
+                "-fx-font-family: 'Chiller';" +
+                "-fx-font-weight: bold;" +
+                "-fx-background-radius: 14;"
+        );
+        mainMenu.setPrefWidth(280);
         mainMenu.setOnAction(e -> actions.onReturnToMainMenuFromGameOver());
 
         Button playAgain = new Button("PLAY AGAIN");
-        playAgain.setStyle("-fx-background-color: #300000; -fx-text-fill: red; -fx-font-size: 22px; -fx-font-family: 'Chiller'; -fx-font-weight: bold;");
-        playAgain.setPrefWidth(260);
+        playAgain.setStyle(
+                "-fx-background-color: rgba(255,255,255,0.12);" +
+                "-fx-text-fill: #ffdede;" +
+                "-fx-font-size: 20px;" +
+                "-fx-font-family: 'Chiller';" +
+                "-fx-font-weight: bold;" +
+                "-fx-background-radius: 14;" +
+                "-fx-border-color: rgba(255,255,255,0.18);" +
+                "-fx-border-width: 1;" +
+                "-fx-border-radius: 14;"
+        );
+        playAgain.setPrefWidth(280);
         playAgain.setOnAction(e -> actions.onPlayAgainFromGameOver());
 
-        box.getChildren().addAll(label, mainMenu, playAgain);
+        HBox buttons = new HBox(18, playAgain, mainMenu);
+        buttons.setAlignment(Pos.CENTER);
+
+        box.getChildren().addAll(label, buttons);
         gameOverOverlay.getChildren().add(box);
+        gameOverOverlay.setOpacity(0.0);
+        box.setScaleX(0.98);
+        box.setScaleY(0.98);
         gameRoot.getChildren().add(gameOverOverlay);
+
+        FadeTransition fade = new FadeTransition(Duration.millis(320), gameOverOverlay);
+        fade.setFromValue(0.0);
+        fade.setToValue(1.0);
+
+        ScaleTransition scale = new ScaleTransition(Duration.millis(320), box);
+        scale.setFromX(0.98);
+        scale.setFromY(0.98);
+        scale.setToX(1.0);
+        scale.setToY(1.0);
+
+        new ParallelTransition(fade, scale).play();
     }
 
     @Override

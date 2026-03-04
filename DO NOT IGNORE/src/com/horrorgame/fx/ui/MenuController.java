@@ -106,9 +106,9 @@ public class MenuController {
         Label title = new Label("Select Difficulty");
         title.setStyle("-fx-text-fill: red; -fx-font-size: 56px; -fx-font-family: 'Chiller'; -fx-font-weight: bold;");
 
-        Button easyButton = new Button("Easy");
-        Button mediumButton = new Button("Medium");
-        Button hardButton = new Button("Hard");
+        Button easyButton = new Button("You may ignore");
+        Button mediumButton = new Button("Try not to ignore");
+        Button hardButton = new Button("DO NOT IGNORE");
         styleMenuButton(easyButton);
         styleMenuButton(mediumButton);
         styleMenuButton(hardButton);
@@ -158,35 +158,56 @@ public class MenuController {
         root.setStyle("-fx-background-color: black;");
 
         Label title = new Label("Instructions");
-        title.setStyle("-fx-text-fill: red; -fx-font-size: 56px; -fx-font-family: 'Chiller'; -fx-font-weight: bold;");
+        title.setStyle("-fx-text-fill: #ff4444; -fx-font-size: 64px; -fx-font-family: 'Chiller'; -fx-font-weight: bold;");
 
         VBox topBox = new VBox(title);
         topBox.setAlignment(Pos.CENTER);
-        topBox.setStyle("-fx-padding: 30 0 10 0;");
+        topBox.setStyle("-fx-padding: 30 0 20 0;");
         root.setTop(topBox);
 
-        VBox content = new VBox(8);
-        content.setAlignment(Pos.TOP_LEFT);
-        content.setStyle("-fx-padding: 10 40 10 40;");
-        content.setMaxWidth(800);
-
-        content.getChildren().addAll(
-                createInstructionText("Missing Object - objects that were there before are missing."),
-                createInstructionText("Object Displacement - objects that were displaced from their position."),
-                createInstructionText("Shadowy Figure - shadowy entity that is in the background."),
-                createInstructionText("Intruder - humanoid entity that can cause harm if not reported."),
-                createInstructionText("Strange Imagery - any imagery that should not be there."),
-                createInstructionText("Demonic - demonic entity, often with something red."),
-                createInstructionText("Extra Object - new objects that were not there before."),
-                createInstructionText("Audio Disturbance - any audio that is not normal.")
+        VBox card = new VBox(16);
+        card.setMaxWidth(820);
+        card.setStyle(
+                "-fx-background-color: rgba(255,255,255,0.06);" +
+                "-fx-background-radius: 18;" +
+                "-fx-border-color: rgba(255,255,255,0.12);" +
+                "-fx-border-radius: 18;" +
+                "-fx-border-width: 1;" +
+                "-fx-padding: 22 26 22 26;"
         );
 
-        Label noteTitle = new Label("NOTE:");
-        noteTitle.setStyle("-fx-text-fill: #ff7777; -fx-font-size: 20px; -fx-font-family: Arial; -fx-font-weight: bold;");
-        Label noteBody = new Label("MEMORIZE EVERY ROOM. Anomalies start appearing at 12:30 AM.");
-        noteBody.setStyle("-fx-text-fill: white; -fx-font-size: 18px; -fx-font-family: Arial;");
+        Label howToPlay = new Label("How to play");
+        howToPlay.setStyle("-fx-text-fill: #ff9999; -fx-font-size: 22px; -fx-font-family: Arial; -fx-font-weight: bold;");
 
-        VBox centerBox = new VBox(10, content, noteTitle, noteBody);
+        VBox bullets = new VBox(8);
+        bullets.getChildren().addAll(
+                createInstructionText("• Switch cameras with < and >."),
+                createInstructionText("• Watch for changes. When you see one, press REPORT ANOMALY and choose the type."),
+                createInstructionText("• Wrong reports increase THREAT. Too much THREAT triggers a jumpscare."),
+                createInstructionText("• Anomalies begin spawning at 12:30 AM.")
+        );
+
+        Label anomalyTitle = new Label("Anomaly types");
+        anomalyTitle.setStyle("-fx-text-fill: #ff9999; -fx-font-size: 22px; -fx-font-family: Arial; -fx-font-weight: bold;");
+
+        VBox anomalyList = new VBox(6);
+        anomalyList.getChildren().addAll(
+                createInstructionText("• Missing Object — something is gone."),
+                createInstructionText("• Object Displacement — something moved."),
+                createInstructionText("• Shadowy Figure — a dark figure appears."),
+                createInstructionText("• Intruder — a person-like entity appears."),
+                createInstructionText("• Strange Imagery — something that shouldn't exist."),
+                createInstructionText("• Demonic — unnatural / red demonic presence."),
+                createInstructionText("• Extra Object — a new object appears."),
+                createInstructionText("• Audio Disturbance — abnormal sound in a room.")
+        );
+
+        Label tip = new Label("Tip: Memorize each room’s normal state before 12:30 AM.");
+        tip.setStyle("-fx-text-fill: #dddddd; -fx-font-size: 16px; -fx-font-family: Arial;");
+
+        card.getChildren().addAll(howToPlay, bullets, anomalyTitle, anomalyList, tip);
+
+        VBox centerBox = new VBox(card);
         centerBox.setAlignment(Pos.TOP_CENTER);
         centerBox.setStyle("-fx-padding: 0 40 0 40;");
         root.setCenter(centerBox);
