@@ -86,9 +86,12 @@ public class SceneManager {
         menuController.applyFullscreenBounds(stage);
     }
 
-    public void showPlayAgain() {
+    public void playAgainSameDifficulty() {
+        // Keep previously selected difficulty; just restart the session.
         SoundManager.stopLoop();
-        stage.setScene(difficultyScene);
+        SoundManager.playLoop("/com/horrorgame/assets/audio/VHSNoise.wav");
+        gameController.startNewGame();
+        stage.setScene(gameScene);
         menuController.applyFullscreenBounds(stage);
     }
 

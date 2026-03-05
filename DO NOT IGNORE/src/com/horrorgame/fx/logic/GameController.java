@@ -518,7 +518,7 @@ public class GameController implements GameActions {
         if (view != null) {
             view.hideGameOverOverlay();
         }
-        sceneManager.showPlayAgain();
+        sceneManager.playAgainSameDifficulty();
     }
 
     public void shutdown() {
