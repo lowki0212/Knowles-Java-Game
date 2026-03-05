@@ -361,6 +361,7 @@ public class GameController implements GameActions {
             return;
         }
         cameraTransitionPlaying = true;
+        view.setNavButtonsDisabled(true);
         int targetIndex = (currentRoomIndex - 1 + roomKeys.size()) % roomKeys.size();
         view.playOnceMedia(CAMERA_TRANSITION_PATH, () -> {
             currentRoomIndex = targetIndex;
@@ -368,6 +369,7 @@ public class GameController implements GameActions {
             playCurrentRoomMedia();
             refreshRoomLabel();
             cameraTransitionPlaying = false;
+            view.setNavButtonsDisabled(false);
         });
     }
 
@@ -377,6 +379,7 @@ public class GameController implements GameActions {
             return;
         }
         cameraTransitionPlaying = true;
+        view.setNavButtonsDisabled(true);
         int targetIndex = (currentRoomIndex + 1) % roomKeys.size();
         view.playOnceMedia(CAMERA_TRANSITION_PATH, () -> {
             currentRoomIndex = targetIndex;
@@ -384,6 +387,7 @@ public class GameController implements GameActions {
             playCurrentRoomMedia();
             refreshRoomLabel();
             cameraTransitionPlaying = false;
+            view.setNavButtonsDisabled(false);
         });
     }
 

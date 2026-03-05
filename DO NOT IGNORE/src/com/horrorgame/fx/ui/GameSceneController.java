@@ -47,6 +47,9 @@ public class GameSceneController implements GameView {
     private Button reportButtonGame;
     private Label reportCooldownLabel;
 
+    private Button prevButton;
+    private Button nextButton;
+
     private Label reportStatusLabel;
     private Button[] reportTypeButtons;
 
@@ -132,8 +135,8 @@ public class GameSceneController implements GameView {
         topOverlay.setPadding(new javafx.geometry.Insets(8, 0, 0, 0));
         overlay.setTop(topOverlay);
 
-        Button prevButton = new Button("<");
-        Button nextButton = new Button(">");
+        prevButton = new Button("<");
+        nextButton = new Button(">");
         reportButtonGame = new Button("REPORT ANOMALY");
         reportCooldownLabel = new Label("");
         reportCooldownLabel.setStyle("-fx-text-fill: #ffaaaa; -fx-font-size: 14px; -fx-font-family: Arial;");
@@ -298,6 +301,16 @@ public class GameSceneController implements GameView {
     public void setReportCooldownText(String text) {
         if (reportCooldownLabel != null) {
             reportCooldownLabel.setText(text == null ? "" : text);
+        }
+    }
+
+    @Override
+    public void setNavButtonsDisabled(boolean disabled) {
+        if (prevButton != null) {
+            prevButton.setDisable(disabled);
+        }
+        if (nextButton != null) {
+            nextButton.setDisable(disabled);
         }
     }
 

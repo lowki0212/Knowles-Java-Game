@@ -20,6 +20,8 @@ public interface GameView {
     void setReportButtonDisabled(boolean disabled);
     void setReportCooldownText(String text);
 
+    void setNavButtonsDisabled(boolean disabled);
+
     void showReportOverlay();
     void hideReportOverlay();
     void setReportStatus(String text, String css);

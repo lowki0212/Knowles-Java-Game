@@ -100,18 +100,28 @@ public class MenuController {
             background.setFitHeight(720);
         }
 
-        VBox content = new VBox(30);
+        VBox content = new VBox(18);
         content.setAlignment(Pos.CENTER);
 
         Label title = new Label("Select Difficulty");
         title.setStyle("-fx-text-fill: red; -fx-font-size: 56px; -fx-font-family: 'Chiller'; -fx-font-weight: bold;");
 
-        Button easyButton = new Button("You may ignore");
-        Button mediumButton = new Button("Try not to ignore");
-        Button hardButton = new Button("DO NOT IGNORE");
-        styleMenuButton(easyButton);
-        styleMenuButton(mediumButton);
-        styleMenuButton(hardButton);
+        VBox easyCard = createDifficultyCard(
+                "You may ignore",
+                "Slow anomaly spawns • Low penalties • More forgiving reporting"
+        );
+        VBox mediumCard = createDifficultyCard(
+                "Try not to ignore",
+                "Balanced spawns • Moderate penalties • Stay attentive"
+        );
+        VBox hardCard = createDifficultyCard(
+                "DO NOT IGNORE",
+                "Fast spawns • Heavy penalties • Mistakes are costly"
+        );
+
+        Button easyButton = (Button) easyCard.getChildren().get(0);
+        Button mediumButton = (Button) mediumCard.getChildren().get(0);
+        Button hardButton = (Button) hardCard.getChildren().get(0);
 
         easyButton.setOnAction(e -> {
             SoundManager.playSound("/com/horrorgame/assets/audio/hover_click.WAV");
@@ -139,7 +149,7 @@ public class MenuController {
             sceneManager.showMainMenu();
         });
 
-        content.getChildren().addAll(title, easyButton, mediumButton, hardButton, backButton);
+        content.getChildren().addAll(title, easyCard, mediumCard, hardCard, backButton);
 
         root.getChildren().add(background);
         root.getChildren().add(content);
@@ -151,6 +161,63 @@ public class MenuController {
         background.fitHeightProperty().bind(scene.heightProperty());
 
         return scene;
+    }
+
+    private VBox createDifficultyCard(String title, String description) {
+
+        Button button = new Button(title);
+        button.setPrefWidth(420);
+    
+        button.setStyle(
+            "-fx-background-color: linear-gradient(to bottom, #5a0000, #2b0000);" +
+            "-fx-text-fill: #ff2b2b;" +
+            "-fx-font-size: 34px;" +
+            "-fx-font-family: 'Chiller';" +
+            "-fx-font-weight: bold;" +
+            "-fx-background-radius: 12;" +
+            "-fx-border-radius: 12;" +
+            "-fx-border-color: rgba(255,0,0,0.4);" +
+            "-fx-border-width: 1.5;" +
+            "-fx-padding: 10 20 10 20;"
+        );
+    
+        Label desc = new Label(description);
+        desc.setWrapText(true);
+        desc.setMaxWidth(500);
+    
+        desc.setStyle(
+            "-fx-text-fill: rgba(230,230,230,0.85);" +
+            "-fx-font-size: 16px;" +
+            "-fx-font-family: 'Arial';" +
+            "-fx-alignment: center;" +
+            "-fx-text-alignment: center;"
+        );
+    
+        VBox card = new VBox(12);
+        card.setAlignment(Pos.CENTER);
+        card.getChildren().addAll(button, desc);
+    
+        card.setMaxWidth(560);
+    
+        card.setStyle(
+            "-fx-background-color: rgba(0,0,0,0.65);" +
+            "-fx-background-radius: 18;" +
+            "-fx-border-radius: 18;" +
+            "-fx-border-color: rgba(255,0,0,0.25);" +
+            "-fx-border-width: 1.2;" +
+            "-fx-padding: 18 22 18 22;"
+        );
+        
+        button.setOnMouseEntered(e ->
+            button.setStyle(button.getStyle() +
+                "-fx-effect: dropshadow(gaussian, red, 15, 0.6, 0, 0);")
+        );
+        
+        button.setOnMouseExited(e ->
+            button.setStyle(button.getStyle().replace(
+                "-fx-effect: dropshadow(gaussian, red, 15, 0.6, 0, 0);", ""))
+        );
+        return card;
     }
 
     public Scene buildInstructionsScene() {
